@@ -152,10 +152,12 @@ export function runForecast(s: ScenarioInputs): GridForecast {
     // Top stress buses = highest peak / baseLoad ratio
     const ranked = [...f.busIds]
       .map((bid) => {
-        const b = BUSES.find((x) => x.id === bid)!;
-        const bf = busForecasts.get(bid)!;
+        const b = BUSES.find((x) => x.id === bid);
+        const bf = busForecasts.get(bid);
+        if (!b || !bf) return null;
         return { bid, ratio: bf.peak / Math.max(1, b.baseLoad) };
       })
+      .filter((x): x is { bid: number; ratio: number } => x !== null)
       .sort((a, b) => b.ratio - a.ratio)
       .slice(0, 3)
       .map((x) => x.bid);
