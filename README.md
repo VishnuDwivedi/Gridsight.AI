@@ -40,7 +40,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Open http://localhost:5173. The dashboard loads instantly; live data is pulled on demand when you click **"Pull live"** in the sidebar.
+Open https://bright-fusion-spark.lovable.app/. The dashboard loads instantly; live data is pulled on demand when you click **"Pull live"** in the sidebar.
 
 ---
 
