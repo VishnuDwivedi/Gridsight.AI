@@ -9,14 +9,31 @@ GridSight.AI is a proof-of-concept dashboard that combines **extreme-heat scenar
 
 ## ✨ What it does
 
-| Layer | What it solves |
-|---|---|
-| **Temporal model** | LSTM / Temporal Fusion Transformer per feeder, 24-hour horizon — trained on Pecan Street + NSRDB irradiance + NOAA weather. |
-| **Spatial GNN** | Graph attention over the 123-bus topology so neighboring-feeder stress propagates into the forecast. |
-| **Decision layer** | OpenDSS power-flow validates AI forecasts against thermal & ANSI C84.1 voltage limits. Recommendations ranked by unserved-energy risk. |
-| **Live data feed** | Pulls real Phoenix temperature (NWS), Arizona grid demand (EIA-930), and solar irradiance (NREL) — all optional, all gracefully degrading. |
-| **Nuclear angle** | Quantifies how 3,000 MW of Palo Verde + SMR baseload reshapes the duck curve & feeder stress. |
-| **Model artifacts** | Trained PyTorch checkpoint (`gridsight-repo/models/checkpoints/best.pt`) + distilled browser surrogate weights (`public/model_weights.json`). See [MODEL_CARD.md](./MODEL_CARD.md). |
+# GridSight.AI
+
+> **Spatio-temporal forecasting layer for APS feeders — built for the ASU Energy Hackathon.**
+> Forecast feeder stress before it strands a customer in 118° heat.
+
+GridSight.AI combines **extreme-heat scenarios**, **EV evening-peak growth**, and **nuclear baseload (Palo Verde + SMRs)** on the **IEEE 123-bus distribution feeder** — then ranks exactly which feeders APS should harden first.
+
+> **Honest framing**
+> - The forecasts shown in the browser come from an **AI-trained surrogate** — a deterministic, distilled approximation of the offline TFT + GAT model. It is *not* live neural-net inference; it's the same coefficients the trained model converged to, packaged for 60fps interactivity. See [`MODEL_CARD.md`](./MODEL_CARD.md).
+> - The **trained PyTorch checkpoint** itself (`gridsight-repo/models/checkpoints/best.pt`) and the OpenDSS power-flow runs live in the companion Python repo. Their outputs ship to the dashboard as `public/model_weights.json` and `public/opendss_validation.json`.
+> - **OpenDSS validation is precomputed**, not solved live in the browser. The "Precomputed OpenDSS" badge in the validation panel makes this explicit.
+
+---
+
+## ✨ What it does
+
+| Layer | Where it runs | What it solves |
+|---|---|---|
+| **Trained temporal model** | Python (offline) | TFT (LSTM-class) per feeder, 24-hour horizon, fit on Pecan Street + NSRDB + NOAA. |
+| **Trained spatial GNN** | Python (offline) | Graph attention over the 123-bus topology so neighboring-feeder stress propagates. |
+| **Browser surrogate** | Browser (live) | Deterministic distillation of the above; decomposes every prediction into `base + heat + ev − nuclear` for full transparency. |
+| **Decision layer** | Browser (live) | Composite **risk score** (0.55·util + 0.25·peakWindow + 0.20·scale) ranks feeders and proposes explicit hardening actions. |
+| **Physics validation** | Python → JSON (precomputed) | OpenDSS solves AC power flow + checks ANSI C84.1 voltage limits. Synthesised estimate when JSON is missing. |
+| **Live data feed** | Browser (on demand) | Phoenix temp (NWS), AZPS demand (EIA-930), solar GHI (NREL) — Zod-validated, all optional. |
+| **Mock /api/predict** | Vite dev middleware | Demonstrates the HTTP boundary a Python backend would replace; same engine, served as JSON. |
 
 ---
 
