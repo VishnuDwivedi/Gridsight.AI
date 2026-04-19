@@ -167,32 +167,85 @@ The "real" model trains in the Python repo; the surrogate keeps weights baked in
 ```
 src/
 ├── components/
-│   ├── DecisionTable.tsx      # ranked feeder hardening recommendations
-│   ├── FeederMap.tsx          # IEEE 123-bus topology, color-coded by stress
-│   ├── KpiBar.tsx             # peak load, unserved energy, % stressed feeders
-│   ├── LiveDataButton.tsx     # NWS/EIA/NREL fetch + key status
-│   ├── LoadForecastChart.tsx  # 24h baseline vs scenario chart
-│   ├── NuclearImpactPanel.tsx # Palo Verde + SMR scenario delta
-│   ├── ScenarioControls.tsx   # heat / EV / nuclear sliders
-│   ├── ValidationPanel.tsx    # OpenDSS ANSI C84.1 verdicts
-│   └── ui/                    # shadcn components
+│   ├── DecisionTable.tsx       # ranked feeder hardening plan + risk-score tooltip
+│   ├── FeederMap.tsx           # IEEE 123-bus topology, color-coded by stress
+│   ├── KpiBar.tsx              # peak load, stressed feeders, etc.
+│   ├── LiveDataButton.tsx      # NWS/EIA/NREL fetch + key status
+│   ├── LoadForecastChart.tsx   # 24h baseline vs scenario chart
+│   ├── ModelExplainPanel.tsx   # NEW — collapsible base+heat+ev−nuclear breakdown
+│   ├── NuclearImpactPanel.tsx  # Palo Verde + SMR scenario delta
+│   ├── ScenarioControls.tsx    # heat / EV / nuclear sliders
+│   ├── ValidationPanel.tsx     # OpenDSS ANSI C84.1 verdicts (precomputed)
+│   └── ui/                     # shadcn components
 ├── lib/
-│   ├── forecast-engine.ts     # browser-side AI surrogate
-│   ├── grid-topology.ts       # IEEE 123-bus graph
-│   ├── live-data.ts           # NWS / EIA / NREL fetcher
+│   ├── data/                   # (live + topology data sources)
+│   ├── features/
+│   │   ├── build.ts            # NEW — scenario inputs → per-bus feature vectors
+│   │   └── build.test.ts       # NEW — Vitest unit tests
+│   ├── model/
+│   │   ├── weights.ts          # NEW — Zod-validated surrogate coefficients
+│   │   ├── forecast.ts         # NEW — surrogate forward pass + component decomposition
+│   │   └── forecast.test.ts    # NEW — Vitest unit tests
+│   ├── decision/
+│   │   ├── recommend.ts        # NEW — risk score (0.55·util + 0.25·peak + 0.20·scale) + actions
+│   │   └── recommend.test.ts   # NEW — Vitest unit tests
+│   ├── schemas.ts              # NEW — Zod schemas for model_weights, NWS, EIA, NREL, live.json
+│   ├── api-client.ts           # NEW — optional /api/predict client (VITE_USE_API=1)
+│   ├── forecast-engine.ts      # back-compat shim re-exporting model/* and decision/*
+│   ├── grid-topology.ts        # IEEE 123-bus graph
+│   ├── live-data.ts            # Zod-validated NWS / EIA / NREL fetcher
+│   ├── tsconfig.json           # NEW — strict TS just for /lib/**
 │   └── utils.ts
 ├── pages/
-│   ├── Index.tsx              # main dashboard
+│   ├── Index.tsx               # main dashboard
 │   └── NotFound.tsx
-└── index.css                  # design tokens (HSL)
+└── index.css                   # design tokens (HSL)
+
+vite-plugins/
+└── predict-api.ts              # NEW — dev-only mock /api/predict middleware
 
 public/
-├── opendss_validation.json    # cached ANSI verdicts (from Python repo)
-├── model_weights.json         # distilled surrogate coefficients (see MODEL_CARD.md)
-└── live.json                  # optional cached live snapshot
+├── opendss_validation.json     # cached ANSI verdicts (from Python repo)
+├── model_weights.json          # distilled surrogate coefficients (Zod-validated on load)
+└── live.json                   # optional cached live snapshot
 
-MODEL_CARD.md                  # full model documentation: architecture, training, limits
+MODEL_CARD.md                   # full model documentation: architecture, training, limits
 ```
+
+### Data flow
+
+```
+inputs (heat/EV/nuclear)
+  → lib/features/build       (per-hour feature vectors)
+  → lib/model/forecast       (surrogate forward pass — base + heat + ev − nuclear)
+  → lib/decision/recommend   (risk score + ranked hardening actions)
+  → DecisionTable / ModelExplainPanel / KpiBar / ValidationPanel
+```
+
+### Type safety & validation
+
+- `src/lib/tsconfig.json` enables **strict TS + noImplicitAny** for the entire `/lib` tree (the rest of the codebase keeps the relaxed defaults).
+- `src/lib/schemas.ts` defines **Zod schemas** for every value crossing a trust boundary: `model_weights.json`, `live.json`, NWS forecast, EIA-930 region-data, NREL Solar Resource. All use `safeParse` so a malformed response degrades gracefully instead of crashing.
+
+### Testing
+
+```bash
+npm test          # runs Vitest — 18 tests covering forecast, features, decision ranking
+```
+
+Tests live next to their modules: `src/lib/model/forecast.test.ts`, `src/lib/features/build.test.ts`, `src/lib/decision/recommend.test.ts`.
+
+### Mock /api/predict
+
+A dev-only Vite middleware (`vite-plugins/predict-api.ts`) exposes the same forecast engine as a JSON endpoint:
+
+```bash
+curl -s http://localhost:8080/api/predict \
+  -H 'content-type: application/json' \
+  -d '{"peakTempF": 118, "evGrowth": 3, "nuclearMW": 3000}' | jq .
+```
+
+Set `VITE_USE_API=1` to make the dashboard exercise the HTTP boundary on every forecast — useful when wiring in a real Python backend later.
 
 ---
 
