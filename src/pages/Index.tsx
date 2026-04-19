@@ -10,6 +10,8 @@ import { DecisionTable } from "@/components/DecisionTable";
 import { NuclearImpactPanel } from "@/components/NuclearImpactPanel";
 import { KpiBar } from "@/components/KpiBar";
 import { ValidationPanel } from "@/components/ValidationPanel";
+import { LiveDataButton } from "@/components/LiveDataButton";
+import type { LiveData } from "@/lib/live-data";
 
 const Index = () => {
   const [scenario, setScenario] = useState<ScenarioInputs>(DEFAULT_SCENARIO);
@@ -94,6 +96,9 @@ const Index = () => {
       <section className="container pb-8 grid lg:grid-cols-[320px_1fr] gap-5">
         <div className="space-y-5">
           <ScenarioControls value={scenario} onChange={setScenario} />
+          <LiveDataButton
+            onApply={(d: LiveData) => setScenario((s) => ({ ...s, peakTempF: d.peakTempF }))}
+          />
           <div className="rounded-lg border border-border bg-card/60 backdrop-blur p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="text-mono text-xs uppercase tracking-widest text-muted-foreground">Inspect hour</div>
