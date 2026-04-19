@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Radio, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { fetchLiveData, type LiveData } from "@/lib/live-data";
+import { useEffect, useState } from "react";
+import { Radio, Loader2, CheckCircle2, AlertCircle, KeyRound } from "lucide-react";
+import { fetchLiveData, getDetectedKeys, type LiveData } from "@/lib/live-data";
 
 type Props = {
   onApply: (data: LiveData) => void;
@@ -9,6 +9,11 @@ type Props = {
 export const LiveDataButton = ({ onApply }: Props) => {
   const [state, setState] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [last, setLast] = useState<LiveData | null>(null);
+  const [keys, setKeys] = useState(getDetectedKeys());
+
+  useEffect(() => {
+    setKeys(getDetectedKeys());
+  }, []);
 
   const run = async () => {
     setState("loading");
@@ -39,13 +44,13 @@ export const LiveDataButton = ({ onApply }: Props) => {
       : Radio;
 
   return (
-    <div className="rounded-lg border border-border bg-card/60 backdrop-blur p-4 space-y-2">
+    <div className="rounded-lg border border-border bg-card/60 backdrop-blur p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             Live data feed
           </div>
-          <div className="text-sm font-medium">NWS · EIA-930</div>
+          <div className="text-sm font-medium">NWS · EIA-930 · NREL</div>
         </div>
         <button
           onClick={run}
@@ -61,19 +66,54 @@ export const LiveDataButton = ({ onApply }: Props) => {
           {state === "loading" ? "Fetching…" : state === "ok" ? "Refresh" : "Pull live"}
         </button>
       </div>
+
+      {/* Key status row */}
+      <div className="flex items-center gap-2 text-mono text-[10px]">
+        <KeyRound className="w-3 h-3 text-muted-foreground" />
+        <span
+          className="px-1.5 py-0.5 rounded border"
+          style={{
+            borderColor: keys.eia ? "hsl(var(--nuclear) / 0.4)" : "hsl(var(--border))",
+            color: keys.eia ? "hsl(var(--nuclear))" : "hsl(var(--muted-foreground))",
+            background: keys.eia ? "hsl(var(--nuclear) / 0.08)" : "transparent",
+          }}
+        >
+          EIA {keys.eia ? "✓" : "—"}
+        </span>
+        <span
+          className="px-1.5 py-0.5 rounded border"
+          style={{
+            borderColor: keys.nrel ? "hsl(var(--nuclear) / 0.4)" : "hsl(var(--border))",
+            color: keys.nrel ? "hsl(var(--nuclear))" : "hsl(var(--muted-foreground))",
+            background: keys.nrel ? "hsl(var(--nuclear) / 0.08)" : "transparent",
+          }}
+        >
+          NREL {keys.nrel ? "✓" : "—"}
+        </span>
+        <span className="text-muted-foreground">NWS ✓ (no key)</span>
+      </div>
+
       {last && (
         <div className="text-mono text-[11px] text-muted-foreground leading-relaxed">
-          <div>{last.note}</div>
+          <div className="text-foreground">{last.note}</div>
           <div className="opacity-70">
             source: <span className="text-foreground">{last.source}</span> ·{" "}
             {new Date(last.fetchedAt).toLocaleTimeString()}
           </div>
         </div>
       )}
+
       {!last && (
         <div className="text-mono text-[11px] text-muted-foreground leading-relaxed">
-          Pulls today's Phoenix high (NWS, no key) + current AZPS demand (EIA, needs{" "}
-          <code className="text-foreground">VITE_EIA_API_KEY</code>).
+          Pulls Phoenix high (NWS), AZPS demand (EIA), and solar GHI (NREL).
+          {!keys.eia || !keys.nrel ? (
+            <>
+              {" "}Add keys via <code className="text-foreground">.env</code>{" "}
+              (<code className="text-foreground">VITE_EIA_API_KEY</code>,{" "}
+              <code className="text-foreground">VITE_NREL_API_KEY</code>) — or paste
+              at runtime: <code className="text-foreground">localStorage.EIA_API_KEY = "..."</code>
+            </>
+          ) : null}
         </div>
       )}
     </div>

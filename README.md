@@ -1,3 +1,215 @@
-# Welcome to your Lovable project
+# GridSight.AI
 
-TODO: Document your project here
+> **Spatio-temporal AI forecasting layer for APS feeders — built for the ASU Energy Hackathon.**
+> Forecast feeder stress before it strands a customer in 118° heat.
+
+GridSight.AI is a proof-of-concept dashboard that combines **extreme-heat scenarios**, **EV evening-peak growth**, and **nuclear baseload (Palo Verde + SMRs)** on the **IEEE 123-bus distribution feeder** — then ranks exactly which feeders APS should harden first. AI forecasts are **physics-validated** against ANSI C84.1 voltage limits using OpenDSS.
+
+---
+
+## ✨ What it does
+
+| Layer | What it solves |
+|---|---|
+| **Temporal model** | LSTM / Temporal Fusion Transformer per feeder, 24-hour horizon — trained on Pecan Street + NSRDB irradiance + NOAA weather. |
+| **Spatial GNN** | Graph attention over the 123-bus topology so neighboring-feeder stress propagates into the forecast. |
+| **Decision layer** | OpenDSS power-flow validates AI forecasts against thermal & ANSI C84.1 voltage limits. Recommendations ranked by unserved-energy risk. |
+| **Live data feed** | Pulls real Phoenix temperature (NWS), Arizona grid demand (EIA-930), and solar irradiance (NREL) — all optional, all gracefully degrading. |
+| **Nuclear angle** | Quantifies how 3,000 MW of Palo Verde + SMR baseload reshapes the duck curve & feeder stress. |
+
+---
+
+## 🚀 Quick start
+
+```bash
+# 1. Install
+npm install
+
+# 2. (Optional) Add API keys for live data — see "Live data" below
+cp .env.example .env
+# edit .env and paste your keys
+
+# 3. Run
+npm run dev
+```
+
+Open http://localhost:5173. The dashboard loads instantly; live data is pulled on demand when you click **"Pull live"** in the sidebar.
+
+---
+
+## 🔑 Live data — all keys are OPTIONAL
+
+The dashboard works fully **without any keys** (falls back to NWS for weather, synthetic baseline otherwise). Add keys to unlock richer live signals:
+
+| Source | Variable | Get it from | Cost |
+|---|---|---|---|
+| **NWS** Phoenix forecast high | _none required_ | https://api.weather.gov | free, no signup |
+| **EIA-930** AZPS demand (MW) | `VITE_EIA_API_KEY` | https://www.eia.gov/opendata/register.php | free |
+| **NREL** Phoenix solar GHI (W/m²) | `VITE_NREL_API_KEY` | https://developer.nrel.gov/signup/ | free |
+
+### Three ways to provide keys
+
+**1. `.env` file (recommended for local dev)**
+```bash
+cp .env.example .env
+# then edit:
+VITE_EIA_API_KEY=your_eia_key_here
+VITE_NREL_API_KEY=your_nrel_key_here
+```
+
+**2. Shell export (CI / one-off runs)**
+```bash
+export VITE_EIA_API_KEY=...
+export VITE_NREL_API_KEY=...
+npm run dev
+```
+
+**3. Runtime override (no rebuild, no env)**
+Open DevTools console:
+```js
+localStorage.EIA_API_KEY = "your_key"
+localStorage.NREL_API_KEY = "your_key"
+location.reload()
+```
+
+The Live-data card in the sidebar shows a green ✓ badge for each key it detects.
+
+> ⚠️ **Security note:** Any `VITE_*` variable is bundled into client-side JS and is publicly visible to anyone opening DevTools. EIA + NREL keys are free and rate-limited per-key, so this is fine for hackathon demos. For production, proxy through a server-side function.
+
+### Offline / air-gapped mode
+
+If both APIs are unreachable (or you're demoing without internet), the dashboard reads from `public/live.json`. Generate it with the companion Python repo:
+
+```bash
+# in gridsight-repo
+python scripts/fetch_live.py --output ../gridsight-frontend/public/live.json
+```
+
+If even that's missing, the UI falls back to a 108°F seasonal baseline so the demo never breaks.
+
+---
+
+## 🏗️ System design
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Browser (Vite + React)                   │
+│                                                                 │
+│   ┌──────────────┐   ┌──────────────────┐   ┌───────────────┐  │
+│   │ Scenario     │──▶│  Forecast engine │──▶│ FeederMap     │  │
+│   │ Controls     │   │  (deterministic  │   │ KpiBar        │  │
+│   │ (heat/EV/Nu) │   │   AI surrogate)  │   │ DecisionTable │  │
+│   └──────────────┘   └──────────────────┘   └───────────────┘  │
+│          ▲                    │                     │          │
+│          │                    ▼                     ▼          │
+│   ┌──────────────┐   ┌──────────────────┐   ┌───────────────┐  │
+│   │ Live data    │   │ Nuclear impact   │   │ Validation    │  │
+│   │ NWS/EIA/NREL │   │ panel            │   │ panel (ANSI)  │  │
+│   └──────────────┘   └──────────────────┘   └───────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+        │                                              ▲
+        ▼                                              │
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│ api.weather  │  │ api.eia.gov  │  │ developer    │  │
+│   .gov (NWS) │  │  /v2/electr. │  │  .nrel.gov   │  │
+└──────────────┘  └──────────────┘  └──────────────┘  │
+                                                       │
+                  ┌─────────────────────────────────┐  │
+                  │  Companion Python repo          │  │
+                  │  • train.py (LSTM/TFT + GNN)    │  │
+                  │  • simulate.py (scenarios)      │──┘
+                  │  • validate_opendss.py (ANSI)   │
+                  │  • fetch_live.py (cache)        │
+                  └─────────────────────────────────┘
+```
+
+### Frontend stack
+- **React 18 + Vite 5 + TypeScript 5**
+- **Tailwind CSS v3** with semantic HSL design tokens
+- **shadcn/ui** components + **lucide-react** icons
+- **recharts** for time-series viz
+- Pure client-side — no backend required for the demo
+
+### Forecast engine (`src/lib/forecast-engine.ts`)
+A deterministic surrogate of the trained LSTM/GNN that runs in the browser:
+- 24-hour load curve per feeder, modulated by temperature, EV growth, and nuclear baseload
+- Nonlinear heat response above 110°F (mimics AC saturation)
+- EV evening peak at hours 17–21, scaled by `evGrowth` multiplier
+- Nuclear MW reduces conventional generation share, flattening the duck curve
+
+The "real" model trains in the Python repo; the surrogate keeps weights baked in for instant interactivity in the browser.
+
+### Physics validation (`src/components/ValidationPanel.tsx`)
+- Reads `public/opendss_validation.json` produced by `scripts/validate_opendss.py` in the Python repo
+- Maps AI utilization predictions → OpenDSS load multipliers
+- Solves AC power flow on IEEE 123-bus
+- Checks every bus voltage against **ANSI C84.1**:
+  - Range A: 0.95 – 1.05 pu (normal)
+  - Range B: 0.917 – 1.058 pu (emergency)
+- If `opendss_validation.json` is missing, falls back to a calibrated synthetic estimate so the panel always renders
+
+### Live data fetcher (`src/lib/live-data.ts`)
+- Tries NWS, EIA-930, NREL NSRDB **in parallel**
+- Reports source as `nws+eia+nrel`, `nws+eia`, `nws+nrel`, `nws-only`, `live.json`, or `fallback`
+- Each source independently optional — partial success is still useful
+
+---
+
+## 📁 Project structure
+
+```
+src/
+├── components/
+│   ├── DecisionTable.tsx      # ranked feeder hardening recommendations
+│   ├── FeederMap.tsx          # IEEE 123-bus topology, color-coded by stress
+│   ├── KpiBar.tsx             # peak load, unserved energy, % stressed feeders
+│   ├── LiveDataButton.tsx     # NWS/EIA/NREL fetch + key status
+│   ├── LoadForecastChart.tsx  # 24h baseline vs scenario chart
+│   ├── NuclearImpactPanel.tsx # Palo Verde + SMR scenario delta
+│   ├── ScenarioControls.tsx   # heat / EV / nuclear sliders
+│   ├── ValidationPanel.tsx    # OpenDSS ANSI C84.1 verdicts
+│   └── ui/                    # shadcn components
+├── lib/
+│   ├── forecast-engine.ts     # browser-side AI surrogate
+│   ├── grid-topology.ts       # IEEE 123-bus graph
+│   ├── live-data.ts           # NWS / EIA / NREL fetcher
+│   └── utils.ts
+├── pages/
+│   ├── Index.tsx              # main dashboard
+│   └── NotFound.tsx
+└── index.css                  # design tokens (HSL)
+
+public/
+├── opendss_validation.json    # cached ANSI verdicts (from Python repo)
+└── live.json                  # optional cached live snapshot
+```
+
+---
+
+## 🧪 Companion Python repo
+
+The trained models, OpenDSS physics validation, and live-data caching scripts live in **`gridsight-repo`** (separate). Key entry points:
+
+- `scripts/train.py` — trains the LSTM/TFT + GNN
+- `scripts/simulate.py` — runs scenario sweeps
+- `scripts/validate_opendss.py` — runs the top-5 stressed feeders through `opendssdirect.py` and checks ANSI C84.1
+- `scripts/fetch_live.py` — pulls NWS + EIA + NREL once and writes `data/live.json` (drop into `public/live.json` here)
+
+Both repos use the **same `EIA_API_KEY` / `NREL_API_KEY`** convention so you can share a single `.env`.
+
+---
+
+## 🏆 Why it wins
+
+1. **Real grid topology** — IEEE 123-bus, not a toy 3-bus example.
+2. **Real APIs** — NWS, EIA-930, NREL all wired in (optional but real).
+3. **Physics-validated** — AI predictions are checked against ANSI C84.1 via OpenDSS, not just plotted.
+4. **The nuclear angle** — quantifies Palo Verde + SMR impact, which APS specifically called out.
+5. **Decision-grade output** — ranked hardening recommendations, not just heatmaps.
+6. **Always works** — every external dependency has a fallback, so the demo never breaks live.
+
+---
+
+## 📝 License
+
+MIT — built for the ASU Energy Hackathon · APS Challenge.
