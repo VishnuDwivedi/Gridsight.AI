@@ -9,6 +9,7 @@ import { LoadForecastChart } from "@/components/LoadForecastChart";
 import { DecisionTable } from "@/components/DecisionTable";
 import { NuclearImpactPanel } from "@/components/NuclearImpactPanel";
 import { KpiBar } from "@/components/KpiBar";
+import { ValidationPanel } from "@/components/ValidationPanel";
 
 const Index = () => {
   const [scenario, setScenario] = useState<ScenarioInputs>(DEFAULT_SCENARIO);
@@ -110,6 +111,11 @@ const Index = () => {
       {/* Decision layer */}
       <section className="container pb-10">
         <DecisionTable forecast={current} />
+      </section>
+
+      {/* OpenDSS physics validation */}
+      <section className="container pb-10">
+        <ValidationPanel forecast={current} />
       </section>
 
       {/* Nuclear */}

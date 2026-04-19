@@ -1,0 +1,60 @@
+{
+  "generated_at": "2025-08-15T19:00:00-07:00",
+  "scenario": {
+    "peakTempF": 118,
+    "evGrowth": 3.0,
+    "nuclearMW": 0
+  },
+  "ansi_standard": "C84.1-2020",
+  "limits": {
+    "range_a": { "min_pu": 0.95, "max_pu": 1.05 },
+    "range_b": { "min_pu": 0.917, "max_pu": 1.058 }
+  },
+  "feeders": [
+    {
+      "feeder_id": "F-WEST",
+      "feeder_name": "West Phoenix Trunk",
+      "utilization_pct": 112,
+      "worst_bus": 47,
+      "worst_voltage_pu": 0.892,
+      "verdict": "RANGE_B_VIOLATION",
+      "notes": "Voltage collapse risk at evening peak. Reconductor + DR required."
+    },
+    {
+      "feeder_id": "F-SOUTH",
+      "feeder_name": "South Mountain Lateral",
+      "utilization_pct": 104,
+      "worst_bus": 81,
+      "worst_voltage_pu": 0.928,
+      "verdict": "RANGE_A_VIOLATION",
+      "notes": "Below ANSI Range A. Deploy 2 MWh battery to restore margin."
+    },
+    {
+      "feeder_id": "F-EAST",
+      "feeder_name": "East Mesa Express",
+      "utilization_pct": 97,
+      "worst_bus": 63,
+      "worst_voltage_pu": 0.946,
+      "verdict": "RANGE_A_VIOLATION",
+      "notes": "Marginal. TOU pricing + managed EV charging recommended."
+    },
+    {
+      "feeder_id": "F-NORTH",
+      "feeder_name": "North Scottsdale Loop",
+      "utilization_pct": 88,
+      "worst_bus": 22,
+      "worst_voltage_pu": 0.961,
+      "verdict": "PASS",
+      "notes": "Within ANSI Range A. Monitor."
+    },
+    {
+      "feeder_id": "F-CENTRAL",
+      "feeder_name": "Central Business District",
+      "utilization_pct": 76,
+      "worst_bus": 11,
+      "worst_voltage_pu": 0.974,
+      "verdict": "PASS",
+      "notes": "Healthy headroom."
+    }
+  ]
+}
