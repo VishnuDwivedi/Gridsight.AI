@@ -86,9 +86,10 @@ class TFTBlock(nn.Module):
 class SpatialGAT(nn.Module):
     def __init__(self, in_dim: int, hidden: int = 32, heads: int = 2):
         super().__init__()
+        self.out_dim = hidden
         if not HAS_PYG:
-            self.fallback = nn.Linear(in_dim, hidden * heads)
-            self.heads = heads
+            # Project to `hidden` so the fused dimension matches with or without PyG
+            self.fallback = nn.Linear(in_dim, hidden)
             return
         self.gat1 = GATConv(in_dim, hidden, heads=heads, dropout=0.1)
         self.gat2 = GATConv(hidden * heads, hidden, heads=1, dropout=0.1)
