@@ -136,7 +136,8 @@ export function runForecast(s: ScenarioInputs): GridForecast {
   const feeders: FeederForecast[] = FEEDERS.map((f) => {
     const hourly = Array(24).fill(0);
     f.busIds.forEach((bid) => {
-      const bf = busForecasts.get(bid)!;
+      const bf = busForecasts.get(bid);
+      if (!bf) return;
       bf.hourly.forEach((kw, h) => { hourly[h] += kw; });
     });
     let pk = 0; let ph = 0;
