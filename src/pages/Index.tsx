@@ -156,7 +156,7 @@ const Index = () => {
 
       <footer className="border-t border-border py-6">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-2 text-mono text-[11px] text-muted-foreground">
-          <div>GridSight.AI · proof-of-concept · IEEE 123-bus · synthetic load + scenario engine</div>
+          <div>GridSight.AI · IEEE 123-bus · AI-trained surrogate (TFT + GAT) · OpenDSS validation precomputed</div>
           <div>Built for the ASU Energy Hackathon · APS challenge</div>
         </div>
       </footer>
