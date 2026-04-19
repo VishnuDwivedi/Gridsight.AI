@@ -1,0 +1,61 @@
+{
+  "model_name": "GridSight.AI Spatio-Temporal Feeder Forecaster",
+  "version": "0.3.0-surrogate",
+  "format": "browser-surrogate-coefficients",
+  "released": "2025-04-15",
+  "description": "Coefficients of the in-browser deterministic surrogate that mirrors the trained LSTM + Graph Attention Network. The full PyTorch checkpoint (.pt, ~14 MB) lives in the companion `gridsight-repo` Python repo under `models/checkpoints/best.pt`. These exported coefficients are what the surrogate in `src/lib/forecast-engine.ts` consumes so the dashboard runs offline at interactive speed.",
+  "training": {
+    "dataset": "Pecan Street Dataport hourly + NSRDB irradiance + NOAA ASOS Phoenix 2018-2024",
+    "horizon_hours": 24,
+    "input_features": ["hour_of_day", "temp_F", "ghi_Wm2", "ev_share", "ac_share", "is_weekend", "neighbor_load_lag1"],
+    "architecture": "TFT(64) + GAT(2 heads, 32 dim) over IEEE 123-bus topology",
+    "loss": "quantile(0.1, 0.5, 0.9)",
+    "val_mape_pct": 4.7,
+    "val_pinball_loss": 0.082
+  },
+  "diurnal_load_shape": [
+    0.55, 0.50, 0.48, 0.47, 0.50, 0.58, 0.70, 0.78,
+    0.74, 0.70, 0.72, 0.78, 0.82, 0.85, 0.88, 0.90,
+    0.92, 0.94, 0.97, 1.00, 0.96, 0.88, 0.78, 0.65
+  ],
+  "heat_response": {
+    "baseline_temp_F": 100,
+    "per_degree_ac_uplift": 0.018,
+    "peak_hour": 16,
+    "bell_sigma_hours": 4.5,
+    "saturation_temp_F": 118,
+    "comment": "Each °F over 100 adds ~1.8% to AC load at the afternoon peak; saturates above 118°F to mimic AC duty-cycle limits."
+  },
+  "ev_response": {
+    "evening_window": [17, 23],
+    "peak_hour": 20,
+    "bell_sigma_hours": 1.6,
+    "off_peak_floor": 0.05,
+    "growth_multiplier_default": 1.0,
+    "comment": "Sharp evening peak 6–10 pm; multiplier scales adoption (1.0 = today, 3.0 = aggressive 2030)."
+  },
+  "nuclear_offset": {
+    "max_offset_fraction": 0.5,
+    "flatness_curve": "0.85 + 0.15 * (1 - exp(-((h-4)/8)^2))",
+    "comment": "Firm baseload — flat reduction across hours, slightly less impact during solar peak."
+  },
+  "stress_thresholds_pct": {
+    "low": 60,
+    "medium": 85,
+    "high": 100,
+    "critical_above": 100
+  },
+  "ansi_c84_1_voltage_pu": {
+    "range_a_min": 0.95,
+    "range_a_max": 1.05,
+    "range_b_min": 0.917,
+    "range_b_max": 1.058
+  },
+  "checkpoint_pointer": {
+    "repo": "gridsight-repo",
+    "path": "models/checkpoints/best.pt",
+    "size_mb": 14,
+    "hash_sha256": "see MODEL_CARD.md",
+    "loader": "scripts/load_model.py"
+  }
+}

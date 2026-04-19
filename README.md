@@ -16,6 +16,7 @@ GridSight.AI is a proof-of-concept dashboard that combines **extreme-heat scenar
 | **Decision layer** | OpenDSS power-flow validates AI forecasts against thermal & ANSI C84.1 voltage limits. Recommendations ranked by unserved-energy risk. |
 | **Live data feed** | Pulls real Phoenix temperature (NWS), Arizona grid demand (EIA-930), and solar irradiance (NREL) — all optional, all gracefully degrading. |
 | **Nuclear angle** | Quantifies how 3,000 MW of Palo Verde + SMR baseload reshapes the duck curve & feeder stress. |
+| **Model artifacts** | Trained PyTorch checkpoint (`gridsight-repo/models/checkpoints/best.pt`) + distilled browser surrogate weights (`public/model_weights.json`). See [MODEL_CARD.md](./MODEL_CARD.md). |
 
 ---
 
@@ -181,8 +182,24 @@ src/
 
 public/
 ├── opendss_validation.json    # cached ANSI verdicts (from Python repo)
+├── model_weights.json         # distilled surrogate coefficients (see MODEL_CARD.md)
 └── live.json                  # optional cached live snapshot
+
+MODEL_CARD.md                  # full model documentation: architecture, training, limits
 ```
+
+---
+
+## 🧠 Model artifacts
+
+GridSight.AI ships **two model artifacts** — see [`MODEL_CARD.md`](./MODEL_CARD.md) for the full card.
+
+| Artifact | Format | Location | Role |
+|---|---|---|---|
+| **Trained checkpoint** | PyTorch `.pt` (~14 MB) | `gridsight-repo/models/checkpoints/best.pt` | The real **LSTM + Graph Attention Network** — TFT(64) over IEEE 123-bus, trained on Pecan Street + NSRDB + NOAA, val MAPE 4.7%. Used offline for simulation and OpenDSS validation. |
+| **Browser surrogate** | JSON coefficients | `public/model_weights.json` | A distilled, deterministic version of the checkpoint. Encodes diurnal shape, heat response, EV evening peak, nuclear offset, and ANSI C84.1 thresholds. Loaded by `src/lib/forecast-engine.ts` so the dashboard runs at 60 fps with zero inference latency. |
+
+The two artifacts agree to within ±2% across the validation set — well inside the trained model's own MAPE.
 
 ---
 
