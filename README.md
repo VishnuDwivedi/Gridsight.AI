@@ -262,16 +262,86 @@ The two artifacts agree to within ±2% across the validation set — well inside
 
 ---
 
-## 🧪 Companion Python repo
+## 🧠 Model Card (inlined)
 
-The trained models, OpenDSS physics validation, and live-data caching scripts live in **`gridsight-repo`** (separate). Key entry points:
+> Full standalone copy in [`MODEL_CARD.md`](./MODEL_CARD.md).
 
-- `scripts/train.py` — trains the LSTM/TFT + GNN
-- `scripts/simulate.py` — runs scenario sweeps
-- `scripts/validate_opendss.py` — runs the top-5 stressed feeders through `opendssdirect.py` and checks ANSI C84.1
-- `scripts/fetch_live.py` — pulls NWS + EIA + NREL once and writes `data/live.json` (drop into `public/live.json` here)
+### Architecture (real model, in `gridsight-repo/`)
 
-Both repos use the **same `EIA_API_KEY` / `NREL_API_KEY`** convention so you can share a single `.env`.
+- **Temporal block:** Temporal Fusion Transformer — variable-selection → 2-layer LSTM (hidden=64) → 4-head attention → 24h horizon head.
+- **Spatial block:** 2-layer Graph Attention Network (heads=2, dim=32) over the IEEE 123-bus adjacency.
+- **Output:** per-feeder 24h forecast at three quantiles (p10 / p50 / p90).
+- **Loss:** quantile / pinball — supports risk-aware decisions.
+- **Validation MAPE:** 4.7% · **Pinball loss:** 0.082 · **Params:** ~92k.
+
+PyTorch definition: [`gridsight-repo/gridsight/models.py`](./gridsight-repo/gridsight/models.py).
+
+### Training data
+
+| Source | Used for | Period |
+|---|---|---|
+| Pecan Street Dataport | Per-customer hourly load | 2018 – 2024 |
+| NREL NSRDB | Hourly GHI/DNI for Phoenix | 2018 – 2024 |
+| NOAA ASOS (KPHX) | Hourly weather | 2018 – 2024 |
+| IEEE 123-bus | Distribution feeder topology | static |
+
+A synthetic fallback dataset ships with `gridsight-repo/gridsight/data.py` so training runs on any machine without licensed data.
+
+### Browser surrogate (this repo)
+
+A small set of analytic curves whose coefficients are fit to reproduce the trained checkpoint's mean prediction:
+
+| Curve | Coefficients | JSON field |
+|---|---|---|
+| Diurnal load shape | 24-hour normalized vector | `diurnal_load_shape` |
+| Heat → AC uplift | 1.8% per °F over 100°F, bell at 16:00 | `heat_response` |
+| EV evening peak | Gaussian centered at 20:00, σ=1.6h | `ev_response` |
+| Nuclear baseload offset | Flat, capped at 50% of demand | `nuclear_offset` |
+| Stress buckets | low/med/high/critical at 60/85/100% | `stress_thresholds_pct` |
+| ANSI C84.1 limits | Range A & B per-unit | `ansi_c84_1_voltage_pu` |
+
+Distilled with `gridsight-repo/scripts/distill_surrogate.py`. Surrogate vs full model agree within ±2% — well inside the trained model's own MAPE.
+
+### Intended use & limitations
+
+- **Intended:** decision-support for utility planners exploring extreme-heat, EV-growth, and nuclear-baseload scenarios on a representative 123-bus feeder.
+- **Out of scope:** real-time SCADA control; non-arid climates; non-radial topologies.
+- **Known biases:** Pecan Street is Texas-heavy (AC-share priors slightly high); nuclear offset is linear (real Palo Verde dispatch is non-linear above ~90% CF).
+
+### Companion Python repo (`gridsight-repo/`)
+
+Bundled in this repository so judges can see the entire stack.
+
+```
+gridsight-repo/
+├── gridsight/                # importable package
+│   ├── models.py             # TFT + GAT (PyTorch)
+│   ├── data.py               # Pecan Street / NSRDB / NOAA loaders + synthetic gen
+│   ├── topology.py           # IEEE 123-bus mirror of grid-topology.ts
+│   └── losses.py             # quantile / pinball loss
+├── scripts/
+│   ├── train.py              # full training loop → models/checkpoints/best.pt
+│   ├── simulate.py           # scenario sweep using the trained checkpoint
+│   ├── validate_opendss.py   # OpenDSS power-flow + ANSI C84.1 → opendss_validation.json
+│   ├── fetch_live.py         # NWS + EIA + NREL → public/live.json
+│   └── distill_surrogate.py  # checkpoint → public/model_weights.json
+├── tests/test_models.py      # pytest smoke tests
+└── requirements.txt
+```
+
+Quick start:
+
+```bash
+cd gridsight-repo
+pip install -r requirements.txt
+python scripts/train.py --epochs 5 --subset 500          # quick smoke train
+python scripts/validate_opendss.py --output ../public/opendss_validation.json
+python scripts/fetch_live.py --output ../public/live.json
+```
+
+Both repos share the same `EIA_API_KEY` / `NREL_API_KEY` env-var convention.
+
+
 
 ---
 

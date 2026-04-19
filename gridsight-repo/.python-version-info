@@ -1,0 +1,2 @@
+# Pin the package to a known-good Python; the scripts work on 3.10+.
+python_version = "3.10"
