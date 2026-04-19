@@ -11,6 +11,7 @@ import { NuclearImpactPanel } from "@/components/NuclearImpactPanel";
 import { KpiBar } from "@/components/KpiBar";
 import { ValidationPanel } from "@/components/ValidationPanel";
 import { LiveDataButton } from "@/components/LiveDataButton";
+import { ModelExplainPanel } from "@/components/ModelExplainPanel";
 import type { LiveData } from "@/lib/live-data";
 
 const Index = () => {
@@ -66,9 +67,11 @@ const Index = () => {
             <span className="text-glow-primary" style={{ color: "hsl(var(--primary))" }}>strands a customer in 118° heat.</span>
           </h1>
           <p className="text-muted-foreground text-base md:text-lg leading-relaxed">
-            A spatio-temporal AI proof-of-concept on the IEEE 123-bus feeder. Combine extreme heat,
+            A spatio-temporal proof-of-concept on the IEEE 123-bus feeder. Combine extreme heat,
             EV evening peak growth, and <span style={{ color: "hsl(var(--nuclear))" }} className="font-medium">nuclear baseload</span> from
             Palo Verde and SMRs — then see exactly which feeders to harden first.
+            Forecasts come from an <span className="text-foreground">AI-trained surrogate</span> distilled from a TFT + GAT (see <code className="text-foreground">MODEL_CARD.md</code>);
+            voltage verdicts are <span className="text-foreground">precomputed OpenDSS</span> runs.
           </p>
         </div>
       </section>
@@ -118,6 +121,16 @@ const Index = () => {
         <DecisionTable forecast={current} />
       </section>
 
+      {/* Nuclear (moved up so explain panel sits below it per request) */}
+      <section id="nuclear" className="container pb-10">
+        <NuclearImpactPanel baseline={baseline} current={current} />
+      </section>
+
+      {/* Model transparency — collapsible component breakdown */}
+      <section className="container pb-10">
+        <ModelExplainPanel forecast={current} hour={hour} />
+      </section>
+
       {/* OpenDSS physics validation */}
       <section className="container pb-10">
         <ValidationPanel forecast={current} />
@@ -131,9 +144,9 @@ const Index = () => {
       {/* Architecture / repo */}
       <section className="container pb-16 grid md:grid-cols-3 gap-4">
         {[
-          { icon: <Activity className="w-5 h-5" />, title: "Temporal model", body: "LSTM / Temporal Fusion Transformer per feeder, 24-hour horizon, trained on Pecan Street + NSRDB irradiance + NOAA weather." },
-          { icon: <Zap className="w-5 h-5" />, title: "Spatial GNN", body: "Graph attention over the 123-bus topology so neighboring feeder stress propagates into the forecast." },
-          { icon: <Atom className="w-5 h-5" />, title: "Decision layer", body: "OpenDSS power-flow validates AI forecasts against thermal limits; recommendations ranked by unserved-energy risk." },
+          { icon: <Activity className="w-5 h-5" />, title: "Temporal model (offline)", body: "Trained Temporal Fusion Transformer (LSTM-class) per feeder, 24-hour horizon, fit on Pecan Street + NSRDB + NOAA. Lives in the Python repo." },
+          { icon: <Zap className="w-5 h-5" />, title: "Spatial GNN (offline)", body: "Graph attention over the 123-bus topology. Distilled into the in-browser surrogate at src/lib/model so the dashboard runs at 60fps." },
+          { icon: <Atom className="w-5 h-5" />, title: "Decision layer (live)", body: "Precomputed OpenDSS power-flow checks ANSI C84.1 voltages; recommendations ranked by composite risk score in the browser." },
         ].map((c) => (
           <div key={c.title} className="rounded-lg border border-border bg-card/60 backdrop-blur p-5">
             <div className="w-10 h-10 rounded-md flex items-center justify-center mb-3"
