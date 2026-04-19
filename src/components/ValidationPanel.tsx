@@ -133,7 +133,7 @@ export const ValidationPanel = ({ forecast }: Props) => {
             }}
           >
             <FileJson className="w-3 h-3 inline mr-1" />
-            {source === "file" ? "Live OpenDSS" : "Synthetic estimate"}
+            {source === "file" ? "Precomputed OpenDSS" : "Synthetic estimate"}
           </span>
           <span
             className="text-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded-md"
