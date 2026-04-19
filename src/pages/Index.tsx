@@ -136,11 +136,6 @@ const Index = () => {
         <ValidationPanel forecast={current} />
       </section>
 
-      {/* Nuclear */}
-      <section id="nuclear" className="container pb-16">
-        <NuclearImpactPanel baseline={baseline} current={current} />
-      </section>
-
       {/* Architecture / repo */}
       <section className="container pb-16 grid md:grid-cols-3 gap-4">
         {[
