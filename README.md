@@ -1,16 +1,5 @@
 # GridSight.AI
 
-> **Spatio-temporal AI forecasting layer for APS feeders — built for the ASU Energy Hackathon.**
-> Forecast feeder stress before it strands a customer in 118° heat.
-
-GridSight.AI is a proof-of-concept dashboard that combines **extreme-heat scenarios**, **EV evening-peak growth**, and **nuclear baseload (Palo Verde + SMRs)** on the **IEEE 123-bus distribution feeder** — then ranks exactly which feeders APS should harden first. AI forecasts are **physics-validated** against ANSI C84.1 voltage limits using OpenDSS.
-
----
-
-## ✨ What it does
-
-# GridSight.AI
-
 > **Spatio-temporal forecasting layer for APS feeders — built for the ASU Energy Hackathon.**
 > Forecast feeder stress before it strands a customer in 118° heat.
 
