@@ -72,7 +72,7 @@ def synthetic_dataset(n_days: int = 60, seed: int = 0) -> pd.DataFrame:
             })
 
     df = pd.DataFrame(rows).sort_values(["bus_id", "ts"]).reset_index(drop=True)
-    df["neighbor_load_lag1"] = df.groupby("bus_id")["load_kw"].shift(1).fillna(method="bfill")
+    df["neighbor_load_lag1"] = df.groupby("bus_id")["load_kw"].shift(1).bfill()
     return df
 
 
